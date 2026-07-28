@@ -1,0 +1,16 @@
+{
+  "name": "三思账本",
+  "short_name": "三思",
+  "description": "会劝你三思的生活费管控工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#c67b4b",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤔</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#f5f0e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>三思账本</title>
+<link rel="manifest" href="./manifest.json">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f0e8;--card:#fffdf8;--text:#2c2417;--sub:#8a7e6d;--accent:#c67b4b;--accent2:#e8a86d;
+  --green:#5a9e6f;--red:#c45c4a;--yellow:#d4a03c;--blue:#5b8fb9;
+  --radius:14px;--shadow:0 2px 12px rgba(44,36,23,.08);
+  --nav-h:64px;--safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html{font-size:15px;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);line-height:1.55;overflow-x:hidden}
+body[data-font="round"]{font-family:"Nunito","PingFang SC","Noto Sans SC",sans-serif}
+body[data-font="serif"]{font-family:"Noto Serif SC","Songti SC",Georgia,serif}
+body[data-wallpaper="paper"]{background:#f5f0e8}
+body[data-wallpaper="mint"]{background:#e8f5ed;--bg:#e8f5ed;--card:#f5fff8}
+body[data-wallpaper="lavender"]{background:#ede8f5;--bg:#ede8f5;--card:#f8f5ff}
+body[data-wallpaper="night"]{background:#1a1a2e;--bg:#1a1a2e;--card:#262640;--text:#e0ddd5;--sub:#8888a0;--shadow:0 2px 12px rgba(0,0,0,.25)}
+h2{font-size:1.15rem;font-weight:700;margin-bottom:.6rem}
+h3{font-size:1rem;font-weight:600;margin-bottom:.4rem}
+small{color:var(--sub);font-size:.8rem}
+.hint{color:var(--sub);font-size:.82rem;margin-top:.4rem;line-height:1.5}
+.view{display:none;padding:16px 16px 8px}
+.view.active{display:block;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Header */
+.home-header{text-align:center;padding:24px 0 12px;position:relative}
+.home-header h1{font-size:1.5rem;font-weight:800;letter-spacing:-.02em}
+.home-header p{color:var(--sub);font-size:.82rem;margin-top:2px}
+#settingsButton{position:absolute;right:0;top:24px;background:none;border:none;font-size:1.3rem;cursor:pointer;padding:8px}
+#monthLabel{font-size:.78rem;color:var(--sub);margin-top:4px}
+
+/* Summary */
+.summary-card{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:var(--radius);padding:20px;margin:12px 0;box-shadow:var(--shadow)}
+.summary-card .big{font-size:2rem;font-weight:800;letter-spacing:-.03em}
+.summary-card small{color:rgba(255,255,255,.8)}
+#runwayText{font-size:.78rem;margin-top:4px;opacity:.85}
+
+/* Budget Cards */
+#budgetCards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.budget-card{background:var(--card);border-radius:var(--radius);padding:14px 12px;box-shadow:var(--shadow);text-align:center}
+.budget-card p{font-size:.82rem;margin-bottom:4px}
+.budget-card strong{font-size:1.15rem;display:block;margin:2px 0}
+.budget-card small{display:block;margin-bottom:6px}
+.bar{height:5px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease}
+
+/* Transactions */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px}
+.section-head a{color:var(--accent);font-size:.82rem;text-decoration:none;cursor:pointer}
+.transaction{display:flex;align-items:center;gap:10px;padding:12px;background:var(--card);border-radius:var(--radius);margin-bottom:8px;box-shadow:var(--shadow);position:relative}
+.transaction .badge{font-size:1.3rem;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.04);border-radius:10px;flex-shrink:0}
+.transaction-main{flex:1;min-width:0}
+.transaction-main b{display:block;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.transaction-main small{display:block;margin-top:1px}
+.transaction .amount{font-weight:700;font-size:.95rem;flex-shrink:0;color:var(--red)}
+.transaction.income .amount{color:var(--green)}
+.transaction.income .badge{background:rgba(90,158,111,.1)}
+.del-btn{position:absolute;right:8px;top:8px;width:22px;height:22px;border:none;background:rgba(196,92,74,.1);color:var(--red);border-radius:50%;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.transaction:hover .del-btn,.transaction:active .del-btn{opacity:1}
+@media(hover:none){.del-btn{opacity:.6}}
+
+/* Nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);padding-bottom:var(--safe-bottom);background:var(--card);border-top:1px solid rgba(0,0,0,.06);display:flex;justify-content:space-around;align-items:center;z-index:100;box-shadow:0 -2px 10px rgba(0,0,0,.04)}
+.bottom-nav button{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.68rem;color:var(--sub);cursor:pointer;padding:6px 12px;transition:color .2s}
+.bottom-nav button .icon{font-size:1.35rem;line-height:1}
+.bottom-nav button.selected{color:var(--accent)}
+
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.82rem;color:var(--sub);margin-bottom:4px;font-weight:500}
+input,select,textarea{width:100%;padding:11px 14px;border:1.5px solid rgba(0,0,0,.1);border-radius:10px;font-size:.95rem;background:var(--card);color:var(--text);font-family:inherit;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px}
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .1s,opacity .2s;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-outline{background:transparent;border:1.5px solid var(--accent);color:var(--accent)}
+.btn-sm{padding:8px 14px;font-size:.82rem;width:auto;display:inline-block}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{padding:8px 16px;border:1.5px solid rgba(0,0,0,.1);border-radius:20px;background:var(--card);font-size:.82rem;cursor:pointer;font-family:inherit;color:var(--text);transition:all .2s}
+.tabs button.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Decision */
+.decision-result{padding:18px;border-radius:var(--radius);margin-top:16px;box-shadow:var(--shadow)}
+.decision-result.hidden{display:none}
+.decision-result.good{background:#edf7ef;border:1.5px solid var(--green)}
+.decision-result.wait{background:#fef8ec;border:1.5px solid var(--yellow)}
+.decision-result.no{background:#fceeed;border:1.5px solid var(--red)}
+.decision-result h3{font-size:1.05rem}
+.decision-result p{margin-top:6px;font-size:.88rem;line-height:1.55}
+.decision-metrics{display:flex;gap:12px;margin-top:12px}
+.decision-metrics .metric{flex:1;text-align:center;padding:10px;background:rgba(255,255,255,.6);border-radius:10px}
+.decision-metrics .metric b{display:block;font-size:1.05rem;margin-top:2px}
+
+/* Fitness */
+.progress-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.progress-item{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
+.progress-item .label{font-size:.72rem;color:var(--sub);margin-bottom:3px}
+.progress-item .value{font-size:.92rem;font-weight:700}
+.progress-item .value em{font-weight:400;font-style:normal;color:var(--sub);font-size:.78rem}
+.progress-bar{height:5px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-bar i{display:block;height:100%;border-radius:3px;transition:width .4s ease}
+#calorieBar{background:var(--accent)}
+#proteinBar{background:var(--blue)}
+#fatBar{background:var(--yellow)}
+#carbBar{background:var(--green)}
+
+/* Food DB */
+.food-search{position:relative;margin-bottom:12px}
+.food-search input{padding-left:36px}
+.food-search::before{content:'🔍';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:.9rem}
+.food-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;max-height:360px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.food-item{background:var(--card);border:1.5px solid rgba(0,0,0,.06);border-radius:12px;padding:10px;cursor:pointer;transition:all .15s;font-size:.82rem;text-align:center}
+.food-item:active{transform:scale(.96);border-color:var(--accent)}
+.food-item .fi-icon{font-size:1.5rem;display:block;margin-bottom:4px}
+.food-item .fi-name{font-weight:600;display:block}
+.food-item .fi-cal{color:var(--sub);font-size:.72rem;margin-top:2px}
+.food-cat-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.food-cat-tabs::-webkit-scrollbar{display:none}
+.food-cat-tabs button{flex-shrink:0;padding:6px 14px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:var(--card);font-size:.78rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+.food-cat-tabs button.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Photo estimate */
+.photo-area{border:2px dashed rgba(0,0,0,.12);border-radius:var(--radius);padding:24px;text-align:center;margin-bottom:14px;cursor:pointer;transition:border-color .2s}
+.photo-area:active{border-color:var(--accent)}
+.photo-area .pa-icon{font-size:2rem}
+.photo-area p{font-size:.82rem;color:var(--sub);margin-top:6px}
+.photo-preview{position:relative;margin-bottom:14px}
+.photo-preview img{width:100%;border-radius:var(--radius);max-height:300px;object-fit:contain}
+.photo-preview .close-photo{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.photo-result{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
+.photo-result h3{font-size:.88rem;margin-bottom:8px}
+.photo-result .nutrient-row{display:flex;justify-content:space-between;padding:4px 0;font-size:.85rem;border-bottom:1px solid rgba(0,0,0,.04)}
+.photo-result .nutrient-row:last-child{border:none}
+
+/* Quick foods */
+#quickFoods{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+#quickFoods button{padding:6px 12px;border:1px solid rgba(0,0,0,.1);border-radius:16px;background:var(--card);font-size:.78rem;cursor:pointer;font-family:inherit}
+
+/* Fitness advice */
+#fitnessAdvice{background:var(--card);border-radius:var(--radius);padding:16px;margin-top:12px;box-shadow:var(--shadow)}
+#fitnessAdvice h3{color:var(--accent)}
+#fitnessAdvice ul{padding-left:1.2em;margin:8px 0;font-size:.88rem;line-height:1.6}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(var(--nav-h) + 16px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:24px;font-size:.88rem;z-index:200;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
+.toast button{background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:16px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* Dialog */
+dialog{border:none;border-radius:var(--radius);padding:0;max-width:420px;width:calc(100% - 32px);background:var(--card);color:var(--text);box-shadow:0 8px 40px rgba(0,0,0,.18)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+.dialog-inner{padding:24px 20px;max-height:80dvh;overflow-y:auto}
+.dialog-inner h2{text-align:center;margin-bottom:16px}
+.dialog-section{margin-bottom:18px}
+.dialog-section h3{font-size:.88rem;color:var(--sub);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.dialog-actions{display:flex;gap:10px;margin-top:16px}
+.dialog-actions .btn{flex:1}
+.check-row{display:flex;align-items:center;gap:8px;padding:8px 0}
+.check-row input[type="checkbox"]{width:auto;accent-color:var(--accent)}
+.check-row label{font-size:.88rem}
+.hidden{display:none!important}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+#imagePreview img{max-width:100%;border-radius:10px;margin:8px 0}
+#receiptInput{padding:10px}
+#ledgerSummary{font-size:.82rem;color:var(--sub);margin-bottom:12px}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
+</style>
+</head>
+<body data-wallpaper="paper" data-font="system">
+
+<!-- HOME -->
+<div id="homeView" class="view active">
+  <div class="home-header">
+    <h1>三思账本</h1>
+    <p>会劝你三思的记账本</p>
+    <p id="monthLabel"></p>
+    <button id="settingsButton" title="设置">⚙️</button>
+  </div>
+  <div class="summary-card">
+    <small>本月可支配余额</small>
+    <div class="big" id="totalLeft">¥0</div>
+    <div id="runwayText"></div>
+  </div>
+  <div id="budgetCards"></div>
+  <div class="section-head"><h2>最近记录</h2><a data-go="ledger">查看全部 →</a></div>
+  <div id="recentTransactions"></div>
+</div>
+
+<!-- ADD -->
+<div id="addView" class="view">
+  <h2>记一笔</h2>
+  <div class="tabs">
+    <button data-record-type="expense" class="selected">支出</button>
+    <button data-record-type="income">收入</button>
+    <button data-record-type="screenshot">截图识别</button>
+  </div>
+  <form id="transactionForm">
+    <div class="form-group"><label>金额（元）</label><input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required></div>
+    <div class="form-group"><label>用途 / 备注</label><input name="note" type="text" placeholder="早餐、奶茶、话费…" required></div>
+    <div class="row-2">
+      <div class="form-group"><label>板块</label><select name="bucket" id="bucketSelect"></select></div>
+      <div class="form-group"><label>日期</label><input name="date" id="dateInput" type="date"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">记下来</button>
+  </form>
+  <form id="screenshotForm" class="hidden">
+    <div class="form-group"><label>选择支付截图</label><input type="file" id="receiptInput" accept="image/*"></div>
+    <div id="imagePreview" class="hidden"></div>
+    <button type="submit" class="btn btn-primary">识别并记录</button>
+    <p class="hint" style="margin-top:8px">选择截图后，会弹窗请你确认金额和用途。</p>
+  </form>
+</div>
+
+<!-- LEDGER -->
+<div id="ledgerView" class="view">
+  <h2>本月流水</h2>
+  <p id="ledgerSummary"></p>
+  <div id="ledgerTransactions"></div>
+</div>
+
+<!-- DECISION -->
+<div id="decisionView" class="view">
+  <h2>买前三思</h2>
+  <p class="hint" style="margin-bottom:14px">想买什么？先让我帮你算算值不值。</p>
+  <form id="decisionForm">
+    <div class="form-group"><label>想买什么</label><input name="item" type="text" placeholder="名称" required></div>
+    <div class="row-2">
+      <div class="form-group"><label>价格（元）</label><input name="price" type="number" step="0.01" min="0.01" required></div>
+      <div class="form-group"><label>从哪个板块扣</label><select name="bucket" id="decisionBucket"></select></div>
+    </div>
+    <div class="form-group"><label>紧迫程度</label>
+      <select name="urgency">
+        <option value="high">急需，不买影响生活</option>
+        <option value="medium">有点想要，但能等</option>
+        <option value="low" selected>不急，可有可无</option>
+      </select>
+    </div>
+    <div class="form-group"><label>你想买它的理由</label><textarea name="reason" rows="2" placeholder="写下来有助于你冷静判断…" required></textarea></div>
+    <button type="submit" class="btn btn-primary">帮我分析</button>
+  </form>
+  <div id="decisionResult" class="decision-result hidden"></div>
+</div>
+
+<!-- FITNESS -->
+<div id="fitnessView" class="view">
+  <h2>饮食 & 训练</h2>
+  <p class="hint" id="fitnessDateLabel"></p>
+  <div class="progress-row">
+    <div class="progress-item"><div class="label">热量</div><div class="value" id="calorieProgress">0</div><div class="progress-bar"><i id="calorieBar" style="width:0%"></i></div></div>
+    <div class="progress-item"><div class="label">蛋白质</div><div class="value" id="proteinProgress">0</div><div class="progress-bar"><i id="proteinBar" style="width:0%"></i></div></div>
+    <div class="progress-item"><div class="label">脂肪</div><div class="value" id="fatProgress">0</div><div class="progress-bar"><i id="fatBar" style="width:0%"></i></div></div>
+    <div class="progress-item"><div class="label">碳水</div><div class="value" id="carbProgress">0</div><div class="progress-bar"><i id="carbBar" style="width:0%"></i></div></div>
+  </div>
+  <div class="tabs">
+    <button data-fitness-type="quick" class="selected">快速记录</button>
+    <button data-fitness-type="photo">拍照估算</button>
+    <button data-fitness-type="manual">手动输入</button>
+    <button data-fitness-type="workout">记训练</button>
+    <button data-fitness-type="advice">建议</button>
+  </div>
+
+  <!-- Quick: food database -->
+  <div id="quickPanel">
+    <div class="food-search"><input type="text" id="foodSearchInput" placeholder="搜索食物…  黄焖鸡 / 奶茶 / 薯片"></div>
+    <div class="food-cat-tabs" id="foodCatTabs"></div>
+    <div class="food-grid" id="foodGrid"></div>
+  </div>
+
+  <!-- Photo estimate -->
+  <div id="photoPanel" class="hidden">
+    <div class="photo-area" id="photoDropArea">
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+      <div class="pa-icon">📸</div>
+      <p>拍配料表 / 外卖详情页 / 食物照片<br>点这里拍照或选图</p>
+    </div>
+    <div class="photo-preview hidden" id="photoPreview">
+      <img id="photoImg" src="" alt="食物照片">
+      <button class="close-photo" id="closePhoto">×</button>
+    </div>
+    <div class="photo-result hidden" id="photoResult">
+      <h3>营养估算（参考照片）</h3>
+      <div class="form-group"><label>食物名称</label><input id="photoName" type="text" placeholder="看到了什么食物？"></div>
+      <div class="row-4">
+        <div class="form-group"><label>热量</label><input id="photoCal" type="number" min="0" placeholder="kcal"></div>
+        <div class="form-group"><label>蛋白</label><input id="photoProtein" type="number" min="0" step="0.1" placeholder="g"></div>
+        <div class="form-group"><label>脂肪</label><input id="photoFat" type="number" min="0" step="0.1" placeholder="g"></div>
+        <div class="form-group"><label>碳水</label><input id="photoCarb" type="number" min="0" step="0.1" placeholder="g"></div>
+      </div>
+      <div class="form-group"><label>餐次</label>
+        <select id="photoMeal"><option value="早餐">早餐</option><option value="午餐">午餐</option><option value="晚餐">晚餐</option><option value="加餐">加餐</option></select>
+      </div>
+      <button type="button" id="photoSaveBtn" class="btn btn-primary">记录这一餐</button>
+      <p class="hint">不用追求精确——误差 ±20% 完全够用。</p>
+    </div>
+  </div>
+
+  <!-- Manual food form -->
+  <form id="foodForm" class="hidden">
+    <div class="row-2">
+      <div class="form-group"><label>食物名称</label><input name="name" type="text" placeholder="鸡蛋、米饭…" required></div>
+      <div class="form-group"><label>餐次</label><select name="meal"><option value="早餐">早餐</option><option value="午餐">午餐</option><option value="晚餐">晚餐</option><option value="加餐">加餐</option></select></div>
+    </div>
+    <div class="row-4">
+      <div class="form-group"><label>热量kcal</label><input name="calories" type="number" min="0" placeholder="0" required></div>
+      <div class="form-group"><label>蛋白g</label><input name="protein" type="number" min="0" step="0.1" placeholder="0"></div>
+      <div class="form-group"><label>脂肪g</label><input name="fat" type="number" min="0" step="0.1" placeholder="0"></div>
+      <div class="form-group"><label>碳水g</label><input name="carb" type="number" min="0" step="0.1" placeholder="0"></div>
+    </div>
+    <div class="form-group"><label>日期</label><input name="date" id="foodDate" type="date"></div>
+    <button type="submit" class="btn btn-primary">记录饮食</button>
+  </form>
+
+  <!-- Workout form -->
+  <form id="workoutForm" class="hidden">
+    <div class="form-group"><label>动作名称</label><input name="exercise" type="text" placeholder="深蹲、俯卧撑…" required></div>
+    <div class="row-2">
+      <div class="form-group"><label>组数</label><input name="sets" type="number" min="1" value="3" required></div>
+      <div class="form-group"><label>每组次数</label><input name="reps" type="number" min="1" value="12" required></div>
+    </div>
+    <div class="row-2">
+      <div class="form-group"><label>重量 kg（选填）</label><input name="weight" type="number" min="0" step="0.5" placeholder="0"></div>
+      <div class="form-group"><label>日期</label><input name="date" id="workoutDate" type="date"></div>
+    </div>
+    <button type="submit" class="btn btn-primary">记录训练</button>
+  </form>
+
+  <div id="fitnessAdvice" class="hidden"></div>
+  <div id="fitnessRecords" style="margin-top:14px"></div>
+</div>
+
+<!-- NAV -->
+<nav class="bottom-nav">
+  <button data-go="home" class="selected"><span class="icon">🏠</span>首页</button>
+  <button data-go="add"><span class="icon">✏️</span>记账</button>
+  <button data-go="ledger"><span class="icon">📒</span>流水</button>
+  <button data-go="decision"><span class="icon">🤔</span>三思</button>
+  <button data-go="fitness"><span class="icon">💪</span>健身</button>
+</nav>
+
+<!-- TOAST -->
+<div class="toast" id="undoToast">
+  <span id="toastMsg">已记录</span>
+  <button id="undoBtn">撤销</button>
+</div>
+
+<!-- SETTINGS DIALOG -->
+<dialog id="settingsDialog">
+  <form id="settingsForm" method="dialog" class="dialog-inner">
+    <h2>设置</h2>
+    <div class="dialog-section">
+      <h3>预算</h3>
+      <div class="form-group"><label>起始月份</label><input id="startMonth" type="month" value="2026-08"></div>
+      <div class="form-group"><label>月收入 / 生活费</label><input id="monthlyIncome" type="number" min="0" value="2000"></div>
+      <div class="row-2">
+        <div class="form-group"><label>刚需预算</label><input id="needsBudget" type="number" min="0" value="1000"></div>
+        <div class="form-group"><label>弹性预算</label><input id="wantsBudget" type="number" min="0" value="600"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label>储蓄预算</label><input id="savingsBudget" type="number" min="0" value="400"></div>
+        <div class="form-group"><label>储蓄安全底线</label><input id="savingsFloor" type="number" min="0" value="200"></div>
+      </div>
+    </div>
+    <div class="dialog-section">
+      <h3>健身目标</h3>
+      <div class="row-4">
+        <div class="form-group"><label>热量kcal</label><input id="calorieTarget" type="number" min="0" value="1800"></div>
+        <div class="form-group"><label>蛋白g</label><input id="proteinTarget" type="number" min="0" value="80"></div>
+        <div class="form-group"><label>脂肪g</label><input id="fatTarget" type="number" min="0" value="60"></div>
+        <div class="form-group"><label>碳水g</label><input id="carbTarget" type="number" min="0" value="220"></div>
+      </div>
+    </div>
+    <div class="dialog-section">
+      <h3>提醒</h3>
+      <div class="check-row"><input type="checkbox" id="incomeReminder" checked><label for="incomeReminder">月初提醒录入生活费</label></div>
+      <div class="check-row"><input type="checkbox" id="budgetReminder" checked><label for="budgetReminder">超支预警</label></div>
+      <div class="check-row"><input type="checkbox" id="weeklyReminder"><label for="weeklyReminder">每周总结</label></div>
+      <button type="button" id="saveReminders" class="btn btn-outline btn-sm" style="margin-top:6px">保存提醒偏好</button>
+    </div>
+    <div class="dialog-section">
+      <h3>外观</h3>
+      <div class="row-2">
+        <div class="form-group"><label>字体</label><select id="fontSelect"><option value="system">系统默认</option><option value="round">圆体</option><option value="serif">衬线</option></select></div>
+        <div class="form-group"><label>壁纸</label><select id="wallpaperSelect"><option value="paper">暖纸</option><option value="mint">薄荷</option><option value="lavender">薰衣草</option><option value="night">夜间</option></select></div>
+      </div>
+      <button type="button" id="saveAppearance" class="btn btn-outline btn-sm">应用外观</button>
+    </div>
+    <div class="dialog-section">
+      <h3>数据</h3>
+      <button type="button" id="exportData" class="btn btn-outline btn-sm">导出 JSON 备份</button>
+      <label style="display:inline-block;margin-left:10px" class="btn btn-outline btn-sm">
+        导入备份 <input type="file" id="importData" accept=".json" style="display:none">
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button type="submit" value="cancel" class="btn btn-outline">取消</button>
+      <button type="submit" value="save" class="btn btn-primary">保存设置</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// ===== Constants =====
+const STORAGE_KEY='three-think-ledger-data-v2';
+const defaults={settings:{income:2000,needs:1000,wants:600,savings:400,floor:200,startMonth:'2026-08',calorieTarget:1800,proteinTarget:80,fatTarget:60,carbTarget:220,font:'system',wallpaper:'paper'},reminders:{income:true,budget:true,weekly:false},transactions:[],fitness:{foods:[],workouts:[]}};
+const icons={needs:'🍚',wants:'✨',savings:'🛟'};
+const labels={needs:'刚需',wants:'弹性',savings:'储蓄'};
+
+// ===== Food Database =====
+const foodDB=[
+  // 主食套餐
+  {cat:'外卖套餐',icon:'🍱',name:'黄焖鸡米饭',cal:650,protein:30,fat:22,carb:78},
+  {cat:'外卖套餐',icon:'🍱',name:'番茄炒蛋盖饭',cal:550,protein:18,fat:16,carb:78},
+  {cat:'外卖套餐',icon:'🍱',name:'宫保鸡丁饭',cal:600,protein:28,fat:22,carb:68},
+  {cat:'外卖套餐',icon:'🍱',name:'鱼香肉丝饭',cal:580,protein:22,fat:20,carb:72},
+  {cat:'外卖套餐',icon:'🍱',name:'红烧排骨饭',cal:680,protein:30,fat:28,carb:72},
+  {cat:'外卖套餐',icon:'🍱',name:'回锅肉饭',cal:650,protein:24,fat:28,carb:68},
+  {cat:'外卖套餐',icon:'🍱',name:'麻婆豆腐饭',cal:520,protein:20,fat:18,carb:68},
+  {cat:'外卖套餐',icon:'🍱',name:'咖喱鸡饭',cal:600,protein:25,fat:20,carb:75},
+  {cat:'外卖套餐',icon:'🍱',name:'蛋炒饭',cal:580,protein:15,fat:20,carb:80},
+  {cat:'外卖套餐',icon:'🍱',name:'卤肉饭',cal:550,protein:22,fat:18,carb:72},
+  {cat:'外卖套餐',icon:'🍱',name:'烧鸭饭',cal:620,protein:28,fat:24,carb:65},
+  {cat:'外卖套餐',icon:'🍱',name:'肯德基套餐(鸡腿堡+薯条+可乐)',cal:850,protein:30,fat:38,carb:95},
+  {cat:'外卖套餐',icon:'🍱',name:'麦当劳巨无霸套餐',cal:900,protein:32,fat:40,carb:98},
+  // 面食
+  {cat:'面食粉类',icon:'🍜',name:'红烧牛肉面',cal:550,protein:25,fat:15,carb:75},
+  {cat:'面食粉类',icon:'🍜',name:'兰州拉面(牛肉)',cal:480,protein:20,fat:12,carb:70},
+  {cat:'面食粉类',icon:'🍜',name:'酸辣粉',cal:420,protein:8,fat:14,carb:65},
+  {cat:'面食粉类',icon:'🍜',name:'螺蛳粉',cal:450,protein:10,fat:16,carb:62},
+  {cat:'面食粉类',icon:'🍜',name:'热干面',cal:480,protein:14,fat:18,carb:60},
+  {cat:'面食粉类',icon:'🍜',name:'炸酱面',cal:520,protein:18,fat:16,carb:72},
+  {cat:'面食粉类',icon:'🍜',name:'担担面',cal:500,protein:16,fat:20,carb:60},
+  {cat:'面食粉类',icon:'🍜',name:'米线(过桥)',cal:500,protein:15,fat:14,carb:72},
+  {cat:'面食粉类',icon:'🍜',name:'馄饨(一碗)',cal:380,protein:16,fat:10,carb:52},
+  // 小吃
+  {cat:'小吃简餐',icon:'🥟',name:'饺子(10个)',cal:400,protein:18,fat:12,carb:52},
+  {cat:'小吃简餐',icon:'🥟',name:'煎饼果子',cal:400,protein:12,fat:18,carb:48},
+  {cat:'小吃简餐',icon:'🥟',name:'肉夹馍',cal:450,protein:18,fat:20,carb:48},
+  {cat:'小吃简餐',icon:'🥟',name:'手抓饼(加蛋加肠)',cal:480,protein:14,fat:24,carb:50},
+  {cat:'小吃简餐',icon:'🥟',name:'鸡蛋灌饼',cal:350,protein:12,fat:14,carb:42},
+  {cat:'小吃简餐',icon:'🥟',name:'烤冷面',cal:380,protein:8,fat:12,carb:60},
+  {cat:'小吃简餐',icon:'🥟',name:'包子(2个肉)',cal:340,protein:14,fat:12,carb:42},
+  {cat:'小吃简餐',icon:'🥟',name:'麻辣烫(一碗)',cal:420,protein:15,fat:16,carb:50},
+  {cat:'小吃简餐',icon:'🥟',name:'关东煮(6串)',cal:300,protein:18,fat:8,carb:36},
+  {cat:'小吃简餐',icon:'🥟',name:'烧烤(10串肉)',cal:600,protein:35,fat:32,carb:20},
+  // 奶茶饮品
+  {cat:'奶茶饮品',icon:'🧋',name:'珍珠奶茶(大杯)',cal:450,protein:3,fat:12,carb:82},
+  {cat:'奶茶饮品',icon:'🧋',name:'芋泥波波奶茶',cal:500,protein:4,fat:14,carb:88},
+  {cat:'奶茶饮品',icon:'🧋',name:'杨枝甘露',cal:350,protein:2,fat:8,carb:65},
+  {cat:'奶茶饮品',icon:'🧋',name:'多肉葡萄',cal:300,protein:1,fat:2,carb:72},
+  {cat:'奶茶饮品',icon:'🧋',name:'生椰拿铁',cal:250,protein:4,fat:14,carb:26},
+  {cat:'奶茶饮品',icon:'🧋',name:'美式咖啡',cal:15,protein:0,fat:0,carb:2},
+  {cat:'奶茶饮品',icon:'🧋',name:'拿铁(全脂)',cal:190,protein:8,fat:7,carb:22},
+  {cat:'奶茶饮品',icon:'🧋',name:'柠檬茶(大杯)',cal:200,protein:0,fat:0,carb:50},
+  {cat:'奶茶饮品',icon:'🧋',name:'可乐/雪碧(500ml)',cal:210,protein:0,fat:0,carb:53},
+  {cat:'奶茶饮品',icon:'🧋',name:'冰红茶(500ml)',cal:180,protein:0,fat:0,carb:45},
+  // 零食
+  {cat:'零食甜品',icon:'🍪',name:'薯片(一包70g)',cal:380,protein:3,fat:24,carb:38},
+  {cat:'零食甜品',icon:'🍪',name:'巧克力(一条45g)',cal:240,protein:3,fat:14,carb:26},
+  {cat:'零食甜品',icon:'🍪',name:'面包(一个)',cal:280,protein:8,fat:5,carb:50},
+  {cat:'零食甜品',icon:'🍪',name:'蛋糕(一块)',cal:350,protein:5,fat:16,carb:46},
+  {cat:'零食甜品',icon:'🍪',name:'冰淇淋(一个)',cal:250,protein:3,fat:12,carb:32},
+  {cat:'零食甜品',icon:'🍪',name:'辣条(一包)',cal:280,protein:6,fat:14,carb:32},
+  {cat:'零食甜品',icon:'🍪',name:'坚果(一小把30g)',cal:180,protein:5,fat:16,carb:6},
+  {cat:'零食甜品',icon:'🍪',name:'饼干(一包)',cal:300,protein:4,fat:12,carb:44},
+  // 基础食材
+  {cat:'基础食物',icon:'🥚',name:'鸡蛋1个',cal:78,protein:6,fat:5,carb:1},
+  {cat:'基础食物',icon:'🥛',name:'牛奶250ml',cal:160,protein:8,fat:8,carb:12},
+  {cat:'基础食物',icon:'🍚',name:'米饭一碗',cal:230,protein:4,fat:0.5,carb:50},
+  {cat:'基础食物',icon:'🍗',name:'鸡胸肉100g',cal:165,protein:31,fat:3.5,carb:0},
+  {cat:'基础食物',icon:'🍎',name:'苹果1个',cal:95,protein:0.5,fat:0.3,carb:25},
+  {cat:'基础食物',icon:'🍌',name:'香蕉1根',cal:105,protein:1.3,fat:0.4,carb:27},
+  {cat:'基础食物',icon:'🥦',name:'水煮西兰花200g',cal:70,protein:6,fat:0.8,carb:14},
+  {cat:'基础食物',icon:'🧈',name:'豆腐一块(200g)',cal:160,protein:16,fat:8,carb:4},
+  {cat:'基础食物',icon:'🥜',name:'酸奶一杯(200g)',cal:150,protein:6,fat:4,carb:22},
+  {cat:'基础食物',icon:'🍞',name:'全麦吐司2片',cal:160,protein:8,fat:2,carb:28},
+];
+
+// ===== State =====
+let state=load(), recordType='expense', fitnessType='quick', lastAction=null, toastTimer=null;
+
+function load(){try{const raw=JSON.parse(localStorage.getItem(STORAGE_KEY))||{};return{...defaults,...raw,settings:{...defaults.settings,...raw.settings},reminders:{...defaults.reminders,...raw.reminders},fitness:{...defaults.fitness,...raw.fitness}}}catch{return structuredClone(defaults)}}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));render()}
+function money(v){return`¥${Math.round(Number(v||0)*100)/100}`}
+function actualMonth(){return new Date().toISOString().slice(0,7)}
+function operatingMonth(){return actualMonth()<state.settings.startMonth?state.settings.startMonth:actualMonth()}
+function usageDate(){return actualMonth()<state.settings.startMonth?`${operatingMonth()}-01`:new Date().toISOString().slice(0,10)}
+function txMonth(tx){return String(tx.date).slice(0,7)}
+function totals(){const month=operatingMonth(),r={needs:0,wants:0,savings:0,income:0};state.transactions.filter(t=>txMonth(t)===month).forEach(t=>{if(t.type==='income')r.income+=+t.amount;else r[t.bucket]+=+t.amount});return r}
+function budgets(){const t=totals(),s=state.settings;return{needs:s.needs-t.needs,wants:s.wants-t.wants,savings:s.savings-t.savings,total:s.income+t.income-t.needs-t.wants-t.savings}}
+function daysLeft(){const[year,month]=operatingMonth().split('-').map(Number),now=new Date();if(operatingMonth()>actualMonth())return new Date(year,month,0).getDate();const last=new Date(now.getFullYear(),now.getMonth()+1,0);return Math.max(1,last.getDate()-now.getDate()+1)}
+function optionHTML(){return Object.entries(labels).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+function escapeHTML(v){const div=document.createElement('div');div.textContent=v;return div.innerHTML}
+
+// ===== Toast / Undo =====
+function showToast(msg,undoFn){
+  const toast=document.querySelector('#undoToast'),msgEl=document.querySelector('#toastMsg'),btn=document.querySelector('#undoBtn');
+  msgEl.textContent=msg; lastAction=undoFn;
+  btn.style.display=undoFn?'':'none';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{toast.classList.remove('show');lastAction=null},4000);
+}
+document.querySelector('#undoBtn').addEventListener('click',()=>{if(lastAction){lastAction();lastAction=null;document.querySelector('#undoToast').classList.remove('show');save()}});
+
+// ===== Delete helpers =====
+function deleteTx(id){state.transactions=state.transactions.filter(t=>t.id!==id);save();showToast('已删除')}
+function deleteFood(id){state.fitness.foods=state.fitness.foods.filter(t=>t.id!==id);save();showToast('已删除')}
+function deleteWorkout(id){state.fitness.workouts=state.fitness.workouts.filter(t=>t.id!==id);save();showToast('已删除')}
+
+// ===== Render =====
+function transactionHTML(t,showDel=true){
+  const income=t.type==='income';
+  const del=showDel?`<button class="del-btn" onclick="event.stopPropagation();deleteTx('${t.id}')" title="删除">×</button>`:'';
+  return`<article class="transaction ${income?'income':''}">${del}<span class="badge">${income?'↗':icons[t.bucket]}</span><div class="transaction-main"><b>${escapeHTML(t.note)}</b><small>${t.date} · ${income?'收入':labels[t.bucket]}</small></div><span class="amount">${income?'+':'-'}${money(t.amount)}</span></article>`;
+}
+
+function applyAppearance(){document.body.dataset.wallpaper=state.settings.wallpaper;document.body.dataset.font=state.settings.font;document.querySelector('#fontSelect').value=state.settings.font;document.querySelector('#wallpaperSelect').value=state.settings.wallpaper}
+
+function fitnessTotals(){
+  const date=usageDate(),foods=state.fitness.foods.filter(x=>x.date===date),workouts=state.fitness.workouts.filter(x=>x.date===date);
+  return{foods,workouts,calories:foods.reduce((n,x)=>n+(+x.calories||0),0),protein:foods.reduce((n,x)=>n+(+x.protein||0),0),fat:foods.reduce((n,x)=>n+(+x.fat||0),0),carb:foods.reduce((n,x)=>n+(+x.carb||0),0)};
+}
+
+function renderFitness(){
+  const f=fitnessTotals(),s=state.settings;
+  const pct=(v,t)=>Math.min(100,100*v/Math.max(1,t));
+  document.querySelector('#fitnessDateLabel').textContent=`${usageDate().slice(5).replace('-',' 月 ')} 日`;
+  document.querySelector('#calorieProgress').innerHTML=`${Math.round(f.calories)} <em>/ ${s.calorieTarget} kcal</em>`;
+  document.querySelector('#proteinProgress').innerHTML=`${Math.round(f.protein)} <em>/ ${s.proteinTarget} g</em>`;
+  document.querySelector('#fatProgress').innerHTML=`${Math.round(f.fat)} <em>/ ${s.fatTarget||60} g</em>`;
+  document.querySelector('#carbProgress').innerHTML=`${Math.round(f.carb)} <em>/ ${s.carbTarget||220} g</em>`;
+  document.querySelector('#calorieBar').style.width=`${pct(f.calories,s.calorieTarget)}%`;
+  document.querySelector('#proteinBar').style.width=`${pct(f.protein,s.proteinTarget)}%`;
+  document.querySelector('#fatBar').style.width=`${pct(f.fat,s.fatTarget||60)}%`;
+  document.querySelector('#carbBar').style.width=`${pct(f.carb,s.carbTarget||220)}%`;
+
+  const records=[
+    ...f.foods.map(x=>({kind:'🍽',id:x.id,name:x.name,meta:`${x.meal} · ${x.calories}kcal · 蛋白${x.protein}g · 脂肪${x.fat||0}g · 碳水${x.carb||0}g`,type:'food'})),
+    ...f.workouts.map(x=>({kind:'🏋️',id:x.id,name:x.exercise,meta:`${x.sets}组 × ${x.reps}次${+x.weight?` · ${x.weight}kg`:''}`,type:'workout'}))
+  ];
+  document.querySelector('#fitnessRecords').innerHTML=records.map(r=>`<article class="transaction"><button class="del-btn" onclick="event.stopPropagation();delete${r.type==='food'?'Food':'Workout'}('${r.id}')" title="删除">×</button><span class="badge">${r.kind}</span><div class="transaction-main"><b>${escapeHTML(r.name)}</b><small>${r.meta}</small></div></article>`).join('')||'<p class="hint">还没有记录。</p>';
+
+  // Advice
+  const training=f.workouts.length,proteinGap=Math.max(0,s.proteinTarget-f.protein);
+  let headline='今天先把动作做标准，不急着加重量。',body='<ul><li>新手每周练 3 次全身训练，中间至少休息一天。</li><li>每次选 4–6 个动作：深蹲/腿举、推、拉、髋铰链和核心。</li><li>每组保留约 2–3 次余力；出现关节痛就停。</li></ul>';
+  if(training>0&&proteinGap>0){headline='训练已记录，优先补一份优质蛋白。';body=`<ul><li>还差约 ${Math.round(proteinGap)}g 蛋白质，可以加鸡蛋、牛奶、鱼肉、瘦肉、豆制品。</li><li>先把三餐和睡眠稳定下来，不急着买补剂。</li></ul>`}
+  else if(f.protein>=s.proteinTarget){headline='蛋白目标已达成，正常饮食休息即可。';body='<ul><li>无需额外补充。注意补水和睡眠。</li></ul>'}
+  document.querySelector('#fitnessAdvice').innerHTML=`<h3>${headline}</h3>${body}<p class="hint">通用入门建议，不替代专业意见。</p>`;
+}
+
+function render(){
+  const now=new Date(),month=operatingMonth(),future=month>actualMonth(),t=totals(),b=budgets(),safe=Math.max(0,b.needs/daysLeft()),monthName=`${month.slice(5)} 月`;
+  document.querySelector('#monthLabel').textContent=future?`${month.replace('-',' 年 ')} 月 · 将于 ${monthName} 1 日启用`:`${now.getFullYear()} 年 ${now.getMonth()+1} 月 · 生活费管理`;
+  document.querySelector('#totalLeft').textContent=money(b.total);
+  document.querySelector('#runwayText').textContent=future?`已为 ${monthName} 预留预算 · 刚需每日安全额度 ${money(safe)}`:`刚需每日安全额度：${money(safe)} · 距月底 ${daysLeft()} 天`;
+  document.querySelector('#budgetCards').innerHTML=['needs','wants','savings'].map(k=>{const limit=state.settings[k],spent=t[k],left=b[k],pct=Math.min(100,Math.max(0,spent/limit*100));return`<article class="budget-card"><p>${icons[k]} ${labels[k]}</p><strong>${money(left)}</strong><small>预算 ${money(limit)}</small><div class="bar"><i style="width:${pct}%"></i></div></article>`}).join('');
+  const rows=state.transactions.filter(x=>txMonth(x)===month).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.querySelector('#recentTransactions').innerHTML=rows.slice(0,4).map(t=>transactionHTML(t,false)).join('')||'<p class="hint">从第一笔开始记吧。</p>';
+  document.querySelector('#ledgerTransactions').innerHTML=rows.map(t=>transactionHTML(t,true)).join('')||'<p class="hint">本月暂无流水。</p>';
+  document.querySelector('#ledgerSummary').textContent=`收入 ${money(t.income+state.settings.income)} · 支出 ${money(t.needs+t.wants+t.savings)}`;
+  document.querySelector('#bucketSelect').innerHTML=optionHTML();
+  document.querySelector('#decisionBucket').innerHTML=optionHTML();
+  renderFitness();applyAppearance();
+}
+
+// ===== Navigation =====
+function go(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelector(`#${view}View`).classList.add('active');document.querySelectorAll('.bottom-nav [data-go]').forEach(b=>b.classList.toggle('selected',b.dataset.go===view));window.scrollTo(0,0)}
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+
+// ===== Init dates =====
+document.querySelector('#dateInput').value=usageDate();
+document.querySelector('#foodDate').value=usageDate();
+document.querySelector('#workoutDate').value=usageDate();
+
+// ===== Record type tabs =====
+document.querySelectorAll('[data-record-type]').forEach(btn=>btn.addEventListener('click',()=>{recordType=btn.dataset.recordType;document.querySelectorAll('[data-record-type]').forEach(x=>x.classList.toggle('selected',x===btn));document.querySelector('#transactionForm').classList.toggle('hidden',recordType==='screenshot');document.querySelector('#screenshotForm').classList.toggle('hidden',recordType!=='screenshot');if(recordType==='income')document.querySelector('#bucketSelect').value='savings'}));
+
+// ===== Transaction form =====
+document.querySelector('#transactionForm').addEventListener('submit',e=>{
+  e.preventDefault();const d=Object.fromEntries(new FormData(e.target));
+  const tx={id:crypto.randomUUID(),type:recordType,amount:+d.amount,note:d.note,bucket:d.bucket,date:d.date||usageDate()};
+  state.transactions.push(tx);e.target.reset();document.querySelector('#dateInput').value=usageDate();save();go('home');
+  showToast(`已记录 ${d.note}`,()=>{state.transactions=state.transactions.filter(t=>t.id!==tx.id)});
+});
+
+// ===== Screenshot form =====
+document.querySelector('#receiptInput').addEventListener('change',e=>{const f=e.target.files[0],target=document.querySelector('#imagePreview');if(!f)return;target.classList.remove('hidden');target.innerHTML=`<img alt="截图" src="${URL.createObjectURL(f)}">`});
+document.querySelector('#screenshotForm').addEventListener('submit',e=>{e.preventDefault();if(!document.querySelector('#receiptInput').files[0])return alert('请先选择一张截图。');const amount=prompt('请确认支付金额（元）：');if(!amount||Number(amount)<=0)return;const note=prompt('用途或商户：','待确认消费');if(!note)return;const bucket=prompt('板块：needs / wants / savings','wants');if(!labels[bucket])return alert('请输入 needs、wants 或 savings。');const tx={id:crypto.randomUUID(),type:'expense',amount:+amount,note,bucket,date:usageDate()};state.transactions.push(tx);e.target.reset();document.querySelector('#imagePreview').classList.add('hidden');save();go('home');showToast(`已记录 ${note}`,()=>{state.transactions=state.transactions.filter(t=>t.id!==tx.id)})});
+
+// ===== Decision =====
+document.querySelector('#decisionForm').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target)),price=+d.price,b=budgets(),after=b[d.bucket]-price,totalAfter=b.total-price;let kind='good',title='可以买，但请确认自己真的会用它',text=`购买后${labels[d.bucket]}仍有 ${money(after)}，整体能覆盖本月。`;if(d.bucket==='savings'&&after<state.settings.floor){kind='no';title='本月不建议买';text=`储蓄会降到 ${money(after)}，低于 ${money(state.settings.floor)} 安全底线。`}else if(after<0||totalAfter<0){kind='no';title='本月不建议买';text=`${labels[d.bucket]}将超支 ${money(Math.abs(after))}。`}else if(d.bucket==='wants'&&d.urgency==='low'&&price>=100){kind='wait';title=price>=200?'建议冷静 72 小时':'建议冷静 24 小时';text='预算够，但不急。先放一放，到期后仍想买再来。'}else if(d.bucket==='needs'&&after/daysLeft()<15){kind='wait';title='建议暂缓，保留餐费安全线';text=`买完后刚需每天只剩 ${money(Math.max(0,after/daysLeft()))}。`}const r=document.querySelector('#decisionResult');r.className=`decision-result ${kind}`;r.innerHTML=`<h3>${title}</h3><p>${text}</p><p class="hint">你的理由：${escapeHTML(d.reason)}</p><div class="decision-metrics"><div class="metric">购买后 ${labels[d.bucket]}<b>${money(after)}</b></div><div class="metric">总余额<b>${money(totalAfter)}</b></div></div>`;r.classList.remove('hidden');r.scrollIntoView({behavior:'smooth',block:'nearest'})});
+
+// ===== Fitness type tabs =====
+const fitnessPanels={quick:'quickPanel',photo:'photoPanel',manual:'foodForm',workout:'workoutForm',advice:'fitnessAdvice'};
+document.querySelectorAll('[data-fitness-type]').forEach(btn=>btn.addEventListener('click',()=>{fitnessType=btn.dataset.fitnessType;document.querySelectorAll('[data-fitness-type]').forEach(x=>x.classList.toggle('selected',x===btn));Object.values(fitnessPanels).forEach(id=>{const el=document.querySelector('#'+id);if(el)el.classList.add('hidden')});const target=document.querySelector('#'+fitnessPanels[fitnessType]);if(target)target.classList.remove('hidden')}));
+// Show default panel
+document.querySelector('#quickPanel').classList.remove('hidden');
+
+// ===== Food Database UI =====
+const cats=[...new Set(foodDB.map(f=>f.cat))];
+let activeCat=cats[0],searchQ='';
+
+function renderFoodDB(){
+  const q=searchQ.toLowerCase();
+  const filtered=foodDB.filter(f=>{
+    if(q)return f.name.toLowerCase().includes(q)||f.cat.toLowerCase().includes(q);
+    return f.cat===activeCat;
+  });
+  document.querySelector('#foodCatTabs').innerHTML=cats.map(c=>`<button class="${c===activeCat&&!q?'selected':''}" data-cat="${escapeHTML(c)}">${escapeHTML(c)}</button>`).join('');
+  document.querySelector('#foodGrid').innerHTML=filtered.map(f=>`<div class="food-item" data-food-name="${escapeHTML(f.name)}"><span class="fi-icon">${f.icon}</span><span class="fi-name">${escapeHTML(f.name)}</span><span class="fi-cal">${f.cal}kcal · 蛋白${f.protein}g</span></div>`).join('')||(q?'<p class="hint" style="grid-column:1/-1;text-align:center">没找到，试试换个关键词或用手动输入</p>':'');
+}
+renderFoodDB();
+
+document.querySelector('#foodCatTabs').addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)return;activeCat=btn.dataset.cat;searchQ='';document.querySelector('#foodSearchInput').value='';renderFoodDB()});
+document.querySelector('#foodSearchInput').addEventListener('input',e=>{searchQ=e.target.value.trim();renderFoodDB()});
+
+document.querySelector('#foodGrid').addEventListener('click',e=>{
+  const item=e.target.closest('.food-item');if(!item)return;
+  const name=item.dataset.foodName,f=foodDB.find(x=>x.name===name);if(!f)return;
+  // Guess meal by time
+  const h=new Date().getHours();let meal='加餐';if(h>=5&&h<10)meal='早餐';else if(h>=10&&h<14)meal='午餐';else if(h>=14&&h<21)meal='晚餐';
+  const entry={id:crypto.randomUUID(),name:f.name,meal,calories:f.cal,protein:f.protein,fat:f.fat,carb:f.carb,date:usageDate()};
+  state.fitness.foods.push(entry);save();
+  showToast(`已记录 ${f.name}`,()=>{state.fitness.foods=state.fitness.foods.filter(x=>x.id!==entry.id)});
+});
+
+// ===== Photo estimate =====
+const photoArea=document.querySelector('#photoDropArea'),photoInput=document.querySelector('#photoInput'),photoPreview=document.querySelector('#photoPreview'),photoImg=document.querySelector('#photoImg'),photoResult=document.querySelector('#photoResult');
+photoArea.addEventListener('click',()=>photoInput.click());
+photoInput.addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  photoImg.src=URL.createObjectURL(file);
+  photoPreview.classList.remove('hidden');
+  photoResult.classList.remove('hidden');
+  photoArea.style.display='none';
+});
+document.querySelector('#closePhoto').addEventListener('click',()=>{
+  photoPreview.classList.add('hidden');photoResult.classList.add('hidden');photoArea.style.display='';photoInput.value='';
+  URL.revokeObjectURL(photoImg.src);
+});
+document.querySelector('#photoSaveBtn').addEventListener('click',()=>{
+  const name=document.querySelector('#photoName').value.trim()||'拍照记录';
+  const cal=+document.querySelector('#photoCal').value||0;
+  const protein=+document.querySelector('#photoProtein').value||0;
+  const fat=+document.querySelector('#photoFat').value||0;
+  const carb=+document.querySelector('#photoCarb').value||0;
+  if(cal<=0)return alert('请至少填个大概热量。');
+  const h=new Date().getHours();let meal='加餐';if(h>=5&&h<10)meal='早餐';else if(h>=10&&h<14)meal='午餐';else if(h>=14&&h<21)meal='晚餐';
+  meal=document.querySelector('#photoMeal').value||meal;
+  const entry={id:crypto.randomUUID(),name,meal,calories:cal,protein,fat,carb,date:usageDate()};
+  state.fitness.foods.push(entry);
+  // Reset
+  document.querySelector('#photoName').value='';document.querySelector('#photoCal').value='';document.querySelector('#photoProtein').value='';document.querySelector('#photoFat').value='';document.querySelector('#photoCarb').value='';
+  photoPreview.classList.add('hidden');photoResult.classList.add('hidden');photoArea.style.display='';photoInput.value='';
+  save();showToast(`已记录 ${name}`,()=>{state.fitness.foods=state.fitness.foods.filter(x=>x.id!==entry.id)});
+});
+
+// ===== Manual food form =====
+document.querySelector('#foodForm').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const entry={id:crypto.randomUUID(),...d,calories:+d.calories,protein:+d.protein||0,fat:+d.fat||0,carb:+d.carb||0,date:d.date||usageDate()};state.fitness.foods.push(entry);e.target.reset();document.querySelector('#foodDate').value=usageDate();save();showToast(`已记录 ${d.name}`,()=>{state.fitness.foods=state.fitness.foods.filter(x=>x.id!==entry.id)})});
+
+// ===== Workout form =====
+document.querySelector('#workoutForm').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const entry={id:crypto.randomUUID(),...d,sets:+d.sets,reps:+d.reps,weight:+d.weight,date:d.date||usageDate()};state.fitness.workouts.push(entry);e.target.reset();document.querySelector('#workoutDate').value=usageDate();save();showToast(`已记录 ${d.exercise}`,()=>{state.fitness.workouts=state.fitness.workouts.filter(x=>x.id!==entry.id)})});
+
+// ===== Settings =====
+const dialog=document.querySelector('#settingsDialog');
+document.querySelector('#settingsButton').addEventListener('click',()=>{
+  document.querySelector('#startMonth').value=state.settings.startMonth;
+  document.querySelector('#monthlyIncome').value=state.settings.income;
+  document.querySelector('#needsBudget').value=state.settings.needs;
+  document.querySelector('#wantsBudget').value=state.settings.wants;
+  document.querySelector('#savingsBudget').value=state.settings.savings;
+  document.querySelector('#savingsFloor').value=state.settings.floor;
+  document.querySelector('#calorieTarget').value=state.settings.calorieTarget;
+  document.querySelector('#proteinTarget').value=state.settings.proteinTarget;
+  document.querySelector('#fatTarget').value=state.settings.fatTarget||60;
+  document.querySelector('#carbTarget').value=state.settings.carbTarget||220;
+  dialog.showModal();
+});
+document.querySelector('#settingsForm').addEventListener('submit',e=>{
+  if(e.submitter.value!=='save')return;
+  state.settings={...state.settings,startMonth:document.querySelector('#startMonth').value||'2026-08',income:+document.querySelector('#monthlyIncome').value,needs:+document.querySelector('#needsBudget').value,wants:+document.querySelector('#wantsBudget').value,savings:+document.querySelector('#savingsBudget').value,floor:+document.querySelector('#savingsFloor').value,calorieTarget:+document.querySelector('#calorieTarget').value,proteinTarget:+document.querySelector('#proteinTarget').value,fatTarget:+document.querySelector('#fatTarget').value,carbTarget:+document.querySelector('#carbTarget').value};save();
+});
+document.querySelector('#saveReminders').addEventListener('click',()=>{state.reminders={income:document.querySelector('#incomeReminder').checked,budget:document.querySelector('#budgetReminder').checked,weekly:document.querySelector('#weeklyReminder').checked};save();showToast('提醒偏好已保存')});
+document.querySelector('#saveAppearance').addEventListener('click',()=>{state.settings.font=document.querySelector('#fontSelect').value;state.settings.wallpaper=document.querySelector('#wallpaperSelect').value;save()});
+document.querySelector('#exportData').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`三思账本-${operatingMonth()}.json`;a.click();URL.revokeObjectURL(a.href)});
+document.querySelector('#importData').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);state={...defaults,...d,settings:{...defaults.settings,...d.settings},reminders:{...defaults.reminders,...d.reminders},fitness:{...defaults.fitness,...d.fitness}};save();showToast('数据已导入')}catch{alert('文件格式不对')}};r.readAsText(f)});
+
+// ===== SW =====
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+render();
+</script>
+</body>
+</html>
